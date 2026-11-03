@@ -13,6 +13,13 @@ CONFIG_KEYS: set[str] = ['ContextWindow', 'OperationStatus', 'RPM', 'PREFIX']
 lock = asyncio.Lock()
 RouterQueue: asyncio.Queue = asyncio.Queue()
 
+@dataclass
+class PromptPayload(slots=True):
+    Prompt:   str
+    Metadata: str
+    Key:      str
+    Model:    str
+
 async def UpdateRouterStatus(status: str = None, layer: str = None) -> bool:
 
     if (not status and not layer):
