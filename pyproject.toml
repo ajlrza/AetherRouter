@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aether-router"
+version = "1.0.0"
+requires-python = ">= 3.8"
+dependencies = [
+    "orjson",
+    "transformers"
+]
+authors = [
+  {name = "Anjelo Laroza", email = "larozaanjelo@gmail.com"},
+]
+maintainers = [
+  {name = "Anjelo Laroza", email = "larozaanjelo@gmail.com"}
+]
+description = "an async, multi-provider LLM routing and fallback engine featuring state-machine queues, dynamic endpoint self-healing, and token window evaluation."
+readme = "README.md"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: System :: Distributed Computing",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["aether"]
