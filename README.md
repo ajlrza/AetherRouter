@@ -1,4 +1,5 @@
 # aether-router
 Async, multi-provider LLM routing and fallback engine featuring state-machine queues, dynamic endpoint self-healing, and token window evaluation.
 
-<img width="2000" height="1320" alt="image" src="https://github.com/user-attachments/assets/23db4574-07d3-489f-bd60-5f38fa3e882f" />
+# architecture
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/2e34ba2c-0416-4a01-91dc-ea1ba1a6ebd4" />
