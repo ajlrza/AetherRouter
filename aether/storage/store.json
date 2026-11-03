@@ -1,0 +1,86 @@
+{
+  "OPENAI": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "ANTHROPIC": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "GOOGLE": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "MISTRAL": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "COHERE": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "PERPLEXITY": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "OPENROUTER": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "GROQ": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "TOGETHER": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "HF": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "DEEPINFRA": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "AZUREOAI": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "AWS": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  },
+  "VERTEX": {
+    "ContextWindow": null,
+    "Status": null,
+    "RPM": null,
+    "PREFIX": null
+  }
+}
