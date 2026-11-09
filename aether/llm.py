@@ -3,8 +3,6 @@ import orjson, json, requests, base64, struct, os, typing, types
 from huggingface_hub import HfApi
 from huggingface_hub import login, DeviceCodeError
 
-WORLD_BUILD_TOON_TEMPLATE = "->compressworldusing->worldtheme:[list],generalkwords:[list],charactersname:[list]ifany->worldconnect[theme,characters,keywords]"
-WORLD_PROGRESS_TOON_TEMPLATE = "->compressworldusing->generalstate:str[state1,2,3]mcavatarstate:str[emotion1,2,3],mcpositionstate:float[x,y,z],worldstate->[events->variables]"  
 STANDARD_HEADERS = {'Content-Type': 'application/json'}
 
 #WIP
@@ -55,10 +53,10 @@ def schema_adapter(request_response: dict[str, any]):
 
     pass
 
-def dynamic_state_gen(keys_name: list[str], vals_hints: list[str]):
+def dynamic_gen(keys_name: list[str], vals_hints: list[str]):
   '''
-    A dynamic state generator, used for a custom
-    state from user and to be filled by the LLM generation
+    A dynamic config/schema generator, used for a 
+    customized request structure
     Keys: Any string
     Vals: Type hints for the keys
   '''
@@ -78,9 +76,9 @@ def openai_template():
         "json_schema": {"name": None, "schema": {}}
     },
     "stream": False
-    }
+  }
 
-async def state_img_handler(state: str):
+async def img_handler(state: str):
 
   import PIL
 
@@ -104,8 +102,7 @@ async def state_img_handler(state: str):
 
   return data
 
-
-async def state_response_handler(endpoint: str, headers: str) -> dict[str, typing.Any] | None:
+async def response_handler(endpoint: str, headers: str) -> dict[str, typing.Any] | None:
 
     data: dict[str, typing.Any] = None
     
@@ -123,8 +120,9 @@ async def state_response_handler(endpoint: str, headers: str) -> dict[str, typin
 
           loaded = orjson.loads(response.raw)
           if (isinstance(data, dict[str, any])):
-            data["state"] = loaded["content"]
-            data["state_img"] = state_img_handler(data)
+            if data["content"].endswith(".png"):
+               img_handler(data["content"])
+            data["content"] = loaded["content"]
           elif (not isinstance(data, object)):
             return {"status": "Orjson invalid", "data": response.content.decode("utf-8")}
 
@@ -138,26 +136,8 @@ async def state_response_handler(endpoint: str, headers: str) -> dict[str, typin
 
 async def openai_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-)  -> json:
-  
-  sdk_api: object
-  hf_api: object
-
-  exclusive_headers = {}
-  exclusive_headers |= STANDARD_HEADERS
-
-  response = state_response_handler(endpoint, exclusive_headers)
-
-async def anthropic_call(
-    endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
-    api_key: str = None, 
-    doRender: bool = False
 )  -> orjson:
   
   sdk_api: object
@@ -166,227 +146,210 @@ async def anthropic_call(
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
-  
-async def google_call(
-    model: str,
+  response = response_handler(endpoint, exclusive_headers)
+
+async def anthropic_call(
     endpoint: str,
-    api_key: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
-    doRender: bool = False
-) -> dict[str, typing.Any] | dict[str, bool]:
-
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
-
-  payload = {
-    "contents": [
-        {
-          "parts": [
-              {
-                "text": f"generatewrldsettng->'{content}'->text",
-                "text": f"follow->{WORLD_BUILD_TOON_TEMPLATE}->imgrep&3bgimgasprmpt",
-                "text": "dontoverdoany"}
-          ]
-        }
-    ],
-    "generationConfig": {
-      "responseModalities": ["TEXT","IMAGE"]
-    }
-  }
+    prompt: str,
+    api_key: str = None, 
+)  -> orjson:
+  
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  # Soon
-  #binary_obj: struct.Struct = struct.pack(headers, payload)
+  response = response_handler(endpoint, exclusive_headers)
+  
+async def google_call(
+    endpoint: str,
+    prompt: str,
+    api_key: str = None, 
+) -> orjson:
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  sdk_api: object
+  hf_api: object
+
+  exclusive_headers = {}
+  exclusive_headers |= STANDARD_HEADERS
+
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def mistral_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
+) -> orjson:
 
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
-  
-  response = state_response_handler(endpoint, exclusive_headers)
+
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def cohere_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def perxplexity_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def openrouter_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def groq_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def together_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def hf_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def deepinfra_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def azure_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
 
 async def aws_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response
+
 async def vertex_call(
     endpoint: str,
-    user_states: EnginePayload = None, 
-    first_prompt: PromptPayload = None, 
+    prompt: str,
     api_key: str = None, 
-    doRender: bool = False
-) -> json:
-  
-  content: EnginePayload | PromptPayload | None = user_states or first_prompt or None
+) -> orjson:
+
+  sdk_api: object
+  hf_api: object
 
   exclusive_headers = {}
   exclusive_headers |= STANDARD_HEADERS
 
-  response = state_response_handler(endpoint, exclusive_headers)
+  response = response_handler(endpoint, exclusive_headers)
 
   return response

@@ -1,7 +1,27 @@
-from typing import Any
-from engine.llm_router import llm
+import typing
+from dataclasses import dataclass
+import llm
 
-OAI_SCHEMA_COMPATIBLE: set(APICOnfig) = (
+@dataclass(slots=True)
+class ContextWindow:
+    Tier:   typing.Literal["Free", "Commercial", "Enterprise", "Pro", "Community"] 
+    Amount: int
+
+@dataclass(slots=True)
+class OperationStatus:
+    Status:     str
+    LastUpdate: int
+
+@dataclass(slots=True)
+class APIConfig:
+    Call: typing.Callable
+    Window:     ContextWindow
+    Status:     OperationStatus
+    RPM:        int
+    Prefix:     str
+    Endpoint:   str
+
+OAI_SCHEMA_COMPATIBLE: set(Any) = (
     OPENAI, 
     AZUREOAI, 
     GROQ, 

@@ -1,4 +1,6 @@
 import typing, types
+import aether.storage.store as store
+from dataclasses import dataclass
 from collections.abc import Callable
 import orjson, threading, asyncio
 import requests, websockets, base64, os
@@ -13,12 +15,17 @@ CONFIG_KEYS: set[str] = ['ContextWindow', 'OperationStatus', 'RPM', 'PREFIX']
 lock = asyncio.Lock()
 RouterQueue: asyncio.Queue = asyncio.Queue()
 
-@dataclass
-class PromptPayload(slots=True):
+@dataclass(slots=True)
+class PromptPayload:
     Prompt:   str
     Metadata: str
     Key:      str
     Model:    str
+
+@dataclass(slots=True)
+class RouterStatus:
+    Status:         typing.Literal["NOT ROUTING", "ROUTING", "ROUTED"]
+    Layer:          typing.Literal["ENTRY", "CHECK", "LOAD", "UPDATE", "API", "RESPONSE"]
 
 async def UpdateRouterStatus(status: str = None, layer: str = None) -> bool:
 
@@ -31,7 +38,7 @@ async def UpdateRouterStatus(status: str = None, layer: str = None) -> bool:
     try:
 
         global RouterQueue
-        RouterStatus: main_dc.RouterStatus = main_dc.RouterStatus()
+        RouterStatus = RouterStatus()
 
         if (status and layer):
 
@@ -326,7 +333,7 @@ async def CallAPI(model: str, endpoint: str) -> main_dc.EnginePayload:
 
 def BroadcastMessage(Model: str, tokens_length: int) -> typing.Literal['RISKY', 'POTENTIAL'] | typing.Literal[False]:
     
-    checked_catalog: main_dc.APIConfig = CatalogCheck.__contains__(Model)
+    checked_catalog: store.APIConfig = CatalogCheck.__contains__(Model)
 
     if (not checked_catalog):
         return False
@@ -355,7 +362,7 @@ def BroadcastListener(func: Callable, tokens_length: int):
         'VERTEX': func('VERTEX', tokens_length)
     }
 
-def Broadcast(Payload: main_dc.PromptPayload):
+def Broadcast(Payload: PromptPayload):
 
     validated_model = ModelValidator(Payload.Model)
     token_length: int
@@ -367,7 +374,7 @@ def Broadcast(Payload: main_dc.PromptPayload):
 
     sent_broadcast = BroadcastMessage(Payload.Model, token_length)
     
-async def Route(key: str = None, model: str = None) -> main_dc.EnginePayload | types.Callable:
+async def Route(key: str = None, model: str = None) -> EnginePayload | types.Callable:
 
     if isinstance(key, types.NoneType) and isinstance(model, types.NoneType):
         
@@ -410,7 +417,7 @@ async def Route(key: str = None, model: str = None) -> main_dc.EnginePayload | t
 
                 if (called_api.done()):
                     try:
-                        assert isinstance(called_api.result(), main_dc.EnginePayload) == True
+                        assert isinstance(called_api.result(), EnginePayload) == True
                         return called_api.result()
                     except Exception as e:
                         assert e
@@ -457,7 +464,7 @@ async def Route(key: str = None, model: str = None) -> main_dc.EnginePayload | t
             elif (checked == 'DOWN'):
                 return Broadcast
             
-async def Router(Payload: main_dc.EnginePayload | main_dc.PromptPayload) -> main_dc.EnginePayload:
+async def Router(Payload: main_dc.EnginePayload | PromptPayload) -> main_dc.EnginePayload:
 
     # Check for router status first
     status_check_routing = await ReadRouterStatus(layer='ROUTING')
