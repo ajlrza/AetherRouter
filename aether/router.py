@@ -2,9 +2,8 @@ import typing, types
 import aether.storage.store as store
 from dataclasses import dataclass
 from collections.abc import Callable
-import orjson, threading, asyncio
-import requests, websockets, base64, os
-from transformers import AutoTokenizer, TokenizersBackend, SentencePieceBackend, AutoModelForCausalLM
+import orjson, asyncio
+import requests, base64, os
 
 UNIVERSAL_ENDPOINT = "/v1/chat/completions"
 STORE_PATH = "/storage/store.json"
@@ -36,22 +35,18 @@ async def UpdateRouterStatus(status: str = None, layer: str = None) -> bool:
     await lock.acquire()
 
     try:
-
         global RouterQueue
         RouterStatus = RouterStatus()
 
         if (status and layer):
-
             await RouterQueue.put(
                 {"Status": status, "Layer": layer}
             )
 
         elif (not layer and status):
-            
             await RouterQueue.put({"Status": status})
 
         elif (not status and layer):
-
             await RouterQueue.put({"Layer": layer})
 
     except Exception as e:
@@ -76,10 +71,8 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
     if (status and layer):
 
         try:
-
             assert current_router_queue['Status'] == status
             assert current_router_queue['Layer'] == layer
-
             RouterQueue.task_done()
 
         except:
@@ -90,9 +83,7 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
     elif (not layer and status):
         
         try:
-
             assert current_router_queue['Status'] == status
-
             RouterQueue.task_done()
 
         except:
@@ -103,9 +94,7 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
     elif (not status and layer):
 
         try:
-
             assert current_router_queue['Layer'] == layer
-
             RouterQueue.task_done()
 
         except:
@@ -113,50 +102,8 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
             lock.release()
             return False
 
-
     lock.release()
     return True
-
-async def ModelValidator(Model: str) -> TokenizersBackend | SentencePieceBackend:
-    Tokenizer: any
-    Model: any
-
-    if (isinstance(Model, str) and Model.split(" ")):
-        Model = Model.replace(" ", "-")
-
-    if (Model.isupper):
-        Model.lower()
-
-    if (Model not in store.MODEL_CATALOG):
-
-        try:
-
-            if (AutoTokenizer.from_pretrained(Model)):
-                Tokenizer = AutoTokenizer.from_pretrained(Model)
-                Model = AutoModelForCausalLM.from_pretrained(Model)
-
-        except Exception as e:
-            print(e)
-            import getpass
-            custom_model: asyncio.Task = asyncio.create_task(getpass.getpass("Error, Model may be unknown or custom, please input the config. If no need, enter N."))
-            print("Waiting for queue...")
-            if (custom_model.done()):
-                while (not isinstance(custom_model, str)):
-                    print("Invalid input.")
-                    print("Waiting for queue...")
-                    custom_model: str = asyncio.create_task(getpass.getpass("Error, Model may be unknown or custom, please input the config. If no need, enter N."))
-
-                if (custom_model == 'N'):
-                    custom_model_api_endpoint: str = getpass.getpass("Enter endpoint.")
-                    updated_store_memory = UpdatePyStore("Endpoint", custom_model_api_endpoint, "CUSTOM")
-
-                updated_store_memory = UpdatePyStore("Key", dict(custom_model)['key'], "CUSTOM")
-                updated_store_memory = UpdatePyStore("Endpoint", dict(custom_model)['endpoint'], "CUSTOM")
-
-    Tokenizer = AutoTokenizer.from_pretrained(Model)
-    Model = AutoModelForCausalLM.from_pretrained(Model)
-    
-    return (Tokenizer, Model)
 
 class CatalogChecker:
 
@@ -268,7 +215,7 @@ async def CheckAPI(model: str = None) -> typing.Literal['UP', 'DOWN']:
     
     return 'UP'
 
-async def CallAPI(model: str, endpoint: str) -> main_dc.EnginePayload:
+async def CallAPI(model: str, endpoint: str) -> dict[str, any]:
 
     if (endpoint != store.CONFIG_CATALOG[model]['Endpoint']):
         print("Possibly invalid or outdated endpoint, sending request to check..")
@@ -374,7 +321,7 @@ def Broadcast(Payload: PromptPayload):
 
     sent_broadcast = BroadcastMessage(Payload.Model, token_length)
     
-async def Route(key: str = None, model: str = None) -> EnginePayload | types.Callable:
+async def Route(key: str = None, model: str = None) -> dict[str, any] | types.Callable:
 
     if isinstance(key, types.NoneType) and isinstance(model, types.NoneType):
         
@@ -417,7 +364,7 @@ async def Route(key: str = None, model: str = None) -> EnginePayload | types.Cal
 
                 if (called_api.done()):
                     try:
-                        assert isinstance(called_api.result(), EnginePayload) == True
+                        assert isinstance(called_api.result(), dict) == True
                         return called_api.result()
                     except Exception as e:
                         assert e
@@ -464,7 +411,7 @@ async def Route(key: str = None, model: str = None) -> EnginePayload | types.Cal
             elif (checked == 'DOWN'):
                 return Broadcast
             
-async def Router(Payload: main_dc.EnginePayload | PromptPayload) -> main_dc.EnginePayload:
+async def Router(Payload: dict[str, any]) -> dict[str, any]:
 
     # Check for router status first
     status_check_routing = await ReadRouterStatus(layer='ROUTING')
@@ -476,10 +423,10 @@ async def Router(Payload: main_dc.EnginePayload | PromptPayload) -> main_dc.Engi
     elif status_check_routed:
         await UpdateRouterStatus(status='NOT ROUTING')
     
-    RoutedRequest: main_dc.EnginePayload | types.Callable = None
+    RoutedRequest: dict[str, any] | types.Callable = None
 
     if (Payload.Prompt):
-        RoutedRequest: main_dc.EnginePayload | types.Callable = await Route(Payload.Key or None, Payload.Model or None)
+        RoutedRequest: dict[str, any] | types.Callable = await Route(Payload.Key or None, Payload.Model or None)
 
         if isinstance(RoutedRequest, types.Callable):
             BroadcastedRequest = RoutedRequest(Payload)

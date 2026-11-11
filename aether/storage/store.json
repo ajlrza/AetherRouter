@@ -1,86 +1,24 @@
 {
-  "OPENAI": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
+  "groq": {
+    "base_url": "https://api.groq.com/openai/v1/chat/completions",
+    "key_env": "GROQ_API_KEY",
+    "auth_header": "Authorization",
+    "auth_prefix": "Bearer ",
+    "extra_headers": {},
+    "model": "llama-3.3-70b-versatile",
+    "context_window": 131072,
+    "request_template": {"model": "{{model}}", "messages": [{"role": "user", "content": "{{prompt}}"}]},
+    "response_path": "choices.0.message.content"
   },
-  "ANTHROPIC": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "GOOGLE": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "MISTRAL": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "COHERE": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "PERPLEXITY": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "OPENROUTER": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "GROQ": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "TOGETHER": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "HF": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "DEEPINFRA": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "AZUREOAI": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "AWS": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
-  },
-  "VERTEX": {
-    "ContextWindow": null,
-    "Status": null,
-    "RPM": null,
-    "PREFIX": null
+  "anthropic": {
+    "base_url": "https://api.anthropic.com/v1/messages",
+    "key_env": "ANTHROPIC_API_KEY",
+    "auth_header": "x-api-key",
+    "auth_prefix": "",
+    "extra_headers": {"anthropic-version": "2023-06-01"},
+    "model": "claude-sonnet-4-6",
+    "context_window": 200000,
+    "request_template": {"model": "{{model}}", "max_tokens": 1024, "messages": [{"role": "user", "content": "{{prompt}}"}]},
+    "response_path": "content.0.text"
   }
 }
