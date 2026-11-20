@@ -1,5 +1,30 @@
 # AetherRouter
-Async, multi-provider LLM routing and fallback engine featuring state-machine queues, dynamic endpoint self-healing, and token window evaluation.
----
-<img width="768" height="1024" alt="bc3bb401-ff72-4970-b130-b45f65b018bc-0" src="https://github.com/user-attachments/assets/d5a28dd8-676e-4462-b3f9-621b779f6d47" />
 
+Async LLM API router and gateway that routes requests using model configs you enter and store yourself.
+
+> Work in progress.
+
+---
+
+## How it works
+
+1. **Register** a model by entering its config once: endpoint, API key, and context window.
+2. **Store** the config in the local config store (`store.py` with a JSON mirror in `store.json`).
+3. **Route** a prompt: the router looks up the stored config for the requested model, checks that the provider is up, and calls the stored endpoint.
+4. **Broadcast** when no model is given or the provider is down: it broadcasts and evaluates the prompt's token length against every stored model's context window, and each model is flagged `POTENTIAL` or `RISKY`.
+
+<img width="1105" height="1004" alt="tikz-export (1)" src="https://github.com/user-attachments/assets/131d28db-4f35-4a7d-8850-9c492061d6e2" />
+
+## Request layers
+
+A request moves through these layers: `ENTRY`, `CHECK`, `BROADCAST`, `LOAD`, `UPDATE`, `API`, `RESPONSE`.
+
+Router state (`NOT ROUTING`, `ROUTING`, `ROUTED`) and the current layer are tracked through an `asyncio.Queue` guarded by a lock, so concurrent requests see a consistent status.
+
+## Config store
+
+Each model entry holds the values the router needs to serve it. The supported config keys are `ContextWindow`, `OperationStatus`, `RPM`, and `PREFIX`, plus the endpoint and key. Changes made at runtime are written to the Python store and mirrored to JSON.
+
+## Status
+
+Under active development. Not all layers are finished.
