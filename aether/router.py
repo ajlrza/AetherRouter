@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from collections.abc import Callable
 import orjson, asyncio
 import requests, base64, os
+from storage.store import stored_models
 
 UNIVERSAL_ENDPOINT = "/v1/chat/completions"
 STORE_PATH = "/storage/store.json"
@@ -26,6 +27,11 @@ class RouterStatus:
     Status:         typing.Literal["NOT ROUTING", "ROUTING", "ROUTED"]
     Layer:          typing.Literal["ENTRY", "CHECK", "LOAD", "UPDATE", "API", "RESPONSE"]
 
+@dataclass(slots=True)
+class BroadcastReply:
+    Status:         typing.Literal["GOOD", "RISKY"]
+    Model:          str
+    
 async def UpdateRouterStatus(status: str = None, layer: str = None) -> bool:
 
     if (not status and not layer):
@@ -124,24 +130,52 @@ catalogChecker = CatalogChecker()
 
 PROVIDER_CONFIG: any = None
 
-async def _UpdateJSONStore(Config: str, Value: str, Model: str = None, Async: bool = True) -> bool:
+async def _UpdateJSONStore(
+    model: str,
+    base_url: str,
+    key_env: str,
+    context_window: int,
+    req_temp: dict[str, typing.Any],
+    response_path: str,
+    auth_header: typing.Literal["Authorization"] = "Authorization",
+    auth_prefix: typing.Literal["Bearer"] = "Bearer",
+    extra_headers: dict[str, typing.Any] | None = None,
+    is_async: bool = True,
+) -> None:
 
     if os.path.exists(STORE_PATH):
-        try:
 
-            with open(STORE_PATH, 'w') as JSONStore:
+       model_config = orjson.dumps(
+        base_url=base_url,
+        key_env=key_env,
+        model=model,
+        context_window=context_window,
+        request_template=req_temp,
+        response_path=response_path,
+        auth_header=auth_header,
+        auth_prefer=auth_prefix,
+        extra_headers=extra_headers
+       )
+     
+        configs: dict[str, any] | None
 
-                PROVIDER_CONFIG = orjson.loads(JSONStore.read())
-                
-                return True
+        with open(STORE_PATH, 'r', encoding="utf-8") as read_store:
+            configs: dict[str, any] | None = orjson.loads(read_store.read())
 
-        except orjson.JSONDecodeError:
-            # dump in a file to be manually updated instead
-            print(orjson.JSONDecodeError)
+        if (isinstance(configs, types.NoneType)):
 
+            with open(STORE_PATH, 'w', encoding="utf-8") as store:
+
+                orjson.dumps(store, {model: model_config}, indent=4)
+
+        with open(STORE_PATH, 'w', encoding="utf-8") as store:
+
+            configs[model] = model_config
+            orjson.dumps(store, configs, indent=4)
+            
     return None
 
-def UpdatePyStore(Config: str, Value: str, Model: str = None) -> bool | orjson.JSONDecodeError | AssertionError:
+def _UpdatePyStore(Config: str, Value: str, Model: str = None) -> bool | orjson.JSONDecodeError | AssertionError:
 
     if Config not in CONFIG_KEYS:
         raise AssertionError("Config Key does not exist")
@@ -217,7 +251,7 @@ async def CheckAPI(model: str = None) -> typing.Literal['UP', 'DOWN']:
 
 async def CallAPI(model: str, endpoint: str) -> dict[str, any]:
 
-    if (endpoint != store.CONFIG_CATALOG[model]['Endpoint']):
+    if (endpoint != store.stored_models[model]['Endpoint']):
         print("Possibly invalid or outdated endpoint, sending request to check..")
 
         try:
@@ -232,7 +266,7 @@ async def CallAPI(model: str, endpoint: str) -> dict[str, any]:
 
                 UpdateRouterStatus(status='API', layer='UPDATE')
                 updated_endpoint: asyncio.Task = asyncio.create_task(
-                    UpdatePyStore(
+                    _UpdatePyStore(
                         Config='Endpoint',
                         Value=endpoint,
                         Model=model
@@ -278,14 +312,15 @@ async def CallAPI(model: str, endpoint: str) -> dict[str, any]:
     except:
         pass
 
-def BroadcastMessage(Model: str, tokens_length: int) -> typing.Literal['RISKY', 'POTENTIAL'] | typing.Literal[False]:
+def BroadcastMessage(Model: str, tokens_length: int) -> BroadcastReply:
     
     checked_catalog: store.APIConfig = CatalogCheck.__contains__(Model)
+    reply: BroadcastReply = BroadcastReply()
 
     if (not checked_catalog):
         return False
 
-    if (checked_catalog.Window < tokens_length):
+    if (checked_catalog.context_window < tokens_length):
         return "RISKY"
 
     return "POTENTIAL"
@@ -309,7 +344,7 @@ def BroadcastListener(func: Callable, tokens_length: int):
         'VERTEX': func('VERTEX', tokens_length)
     }
 
-def Broadcast(Payload: PromptPayload):
+def Broadcast(Payload: PromptPayload) -> dict[str, any] | bool:
 
     validated_model = ModelValidator(Payload.Model)
     token_length: int
@@ -319,7 +354,10 @@ def Broadcast(Payload: PromptPayload):
     else:
         custom_bpe: object # Soon
 
-    sent_broadcast = BroadcastMessage(Payload.Model, token_length)
+    sent_broadcast: typing.Literal['RISKY', 'POTENTIAL', False] = BroadcastMessage(Payload.Model, token_length)
+
+    if (sent_broadcast == "RISKY" or not sent_broadcast):
+        return False
     
 async def Route(key: str = None, model: str = None) -> dict[str, any] | types.Callable:
 

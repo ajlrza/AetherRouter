@@ -24,6 +24,7 @@ class APIConfig:
     request_template: dict[str, any]
     response_path: str
 
+stored_models: list[str] = []
 
 GENERAL_SCHEMA = {
   "payload": {
