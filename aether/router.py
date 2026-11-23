@@ -13,7 +13,9 @@ ROUTER_LAYERS: set[str] = {"NONE", "ENTRY", "CHECK", "BROADCAST", "LOAD", "UPDAT
 CONFIG_KEYS: set[str] = ['ContextWindow', 'OperationStatus', 'RPM', 'PREFIX']
 
 lock = asyncio.Lock()
-RouterQueue: asyncio.Queue = asyncio.Queue()
+queue: asyncio.Queue = asyncio.Queue()
+url = "https://github.com"
+headers = {"Authorization": os.getenv("API_CALLER_KEY")} 
 
 @dataclass(slots=True)
 class PromptPayload:
@@ -32,6 +34,23 @@ class BroadcastReply:
     Status:         typing.Literal["GOOD", "RISKY"]
     Model:          str
     
+class CatalogChecker:
+
+    def __init__(self):
+        self.Catalog = store.MODEL_CATALOG
+
+    def __contains__(self, Model: str):
+
+        if Model in self.Catalog:
+
+            upperCaseModel = Model.upper()
+            # Checks the actual python code file
+            providerMetadata = getattr(store, upperCaseModel, None) 
+
+            return providerMetadata
+
+checker: CatalogChecker = CatalogChecker()
+
 async def UpdateRouterStatus(status: str = None, layer: str = None) -> bool:
 
     if (not status and not layer):
@@ -41,19 +60,19 @@ async def UpdateRouterStatus(status: str = None, layer: str = None) -> bool:
     await lock.acquire()
 
     try:
-        global RouterQueue
+        global queue
         RouterStatus = RouterStatus()
 
         if (status and layer):
-            await RouterQueue.put(
+            await queue.put(
                 {"Status": status, "Layer": layer}
             )
 
         elif (not layer and status):
-            await RouterQueue.put({"Status": status})
+            await queue.put({"Status": status})
 
         elif (not status and layer):
-            await RouterQueue.put({"Layer": layer})
+            await queue.put({"Layer": layer})
 
     except Exception as e:
         assert e
@@ -71,15 +90,15 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
 
     await lock.acquire()
 
-    global RouterQueue
-    current_router_queue: dict[str, str] = await RouterQueue.get()
+    global queue
+    current_router_queue: dict[str, str] = await queue.get()
 
     if (status and layer):
 
         try:
             assert current_router_queue['Status'] == status
             assert current_router_queue['Layer'] == layer
-            RouterQueue.task_done()
+            queue.task_done()
 
         except:
             print(f"Current Router Status: {current_router_queue['Status']}, Current Router Layer: {current_router_queue['Layer']}" )
@@ -90,7 +109,7 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
         
         try:
             assert current_router_queue['Status'] == status
-            RouterQueue.task_done()
+            queue.task_done()
 
         except:
             print(f"Current Router Status: {current_router_queue['Status']}")
@@ -101,7 +120,7 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
 
         try:
             assert current_router_queue['Layer'] == layer
-            RouterQueue.task_done()
+            queue.task_done()
 
         except:
             print(f"Current Router Layer: {current_router_queue['Layer']}")
@@ -110,23 +129,6 @@ async def ReadRouterStatus(status: str = None, layer: str = None) -> bool:
 
     lock.release()
     return True
-
-class CatalogChecker:
-
-    def __init__(self):
-        self.Catalog = store.MODEL_CATALOG
-
-    def __contains__(self, Model: str):
-
-        if Model in self.Catalog:
-
-            upperCaseModel = Model.upper()
-            # Checks the actual python code file
-            providerMetadata = getattr(store, upperCaseModel, None) 
-
-            return providerMetadata
-
-catalogChecker = CatalogChecker()
 
 PROVIDER_CONFIG: any = None
 
@@ -157,21 +159,21 @@ async def _UpdateJSONStore(
         extra_headers=extra_headers
        )
      
-        configs: dict[str, any] | None
+       configs: dict[str, any] | None
 
-        with open(STORE_PATH, 'r', encoding="utf-8") as read_store:
+       with open(STORE_PATH, 'r', encoding="utf-8") as read_store:
             configs: dict[str, any] | None = orjson.loads(read_store.read())
 
-        if (isinstance(configs, types.NoneType)):
+            if (isinstance(configs, types.NoneType)):
+
+                with open(STORE_PATH, 'w', encoding="utf-8") as store:
+
+                    orjson.dumps(store, {model: model_config}, indent=4)
 
             with open(STORE_PATH, 'w', encoding="utf-8") as store:
 
-                orjson.dumps(store, {model: model_config}, indent=4)
-
-        with open(STORE_PATH, 'w', encoding="utf-8") as store:
-
-            configs[model] = model_config
-            orjson.dumps(store, configs, indent=4)
+                configs[model] = model_config
+                orjson.dumps(store, configs, indent=4)
             
     return None
 
@@ -216,20 +218,17 @@ def CatalogCheck(paramToCheck: str, optParamToCheck: str = None) -> typing.Any |
 
     if (optParamToCheck):
 
-        checkedCatalog = catalogChecker.__contains__(paramToCheck)
-        optCheckedCatalog = catalogChecker.__contains__(optParamToCheck)
+        checkedCatalog = checker.__contains__(paramToCheck)
+        optCheckedCatalog = checker.__contains__(optParamToCheck)
 
         return [checkedCatalog, optCheckedCatalog]
 
-    checkedCatalog = catalogChecker.__contains__(paramToCheck)
+    checkedCatalog = checker.__contains__(paramToCheck)
 
     if (checkedCatalog):
         return checkedCatalog
     else:
         return None
-
-url = "https://github.com"
-headers = {"Authorization": os.getenv("API_CALLER_KEY")} 
 
 async def CheckAPI(model: str = None) -> typing.Literal['UP', 'DOWN']:
 
